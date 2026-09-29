@@ -1,1 +1,1 @@
-import {LoginForm} from "@/components/LoginForm";export default function Login(){return <main id="main" className="authPage"><LoginForm/></main>}
+import {LoginForm} from "@/components/LoginForm";export default function Login(){return <main id="main" className="authPage"><div className="authVisual"><div><span>Dealer edition / 2026</span><strong>Built for the<br/>business of motion.</strong></div></div><LoginForm/></main>}

@@ -1,47 +1,76 @@
-# Dealer Showroom Platform
+# Multi-dealer showroom platform
 
-A reusable, multi-dealer website and staff workspace. The source brief is [`documentation.md`](documentation.md) and remains the product source of truth.
+`documentation.md` is the product source of truth. This repository contains one reusable dealer website product; the future marketplace remains a separate project and deployment.
 
-## Stack and boundaries
+## Technology
 
-Django 5.2 supplies server-rendered, progressively enhanced pages, authentication, validation, migrations, and a mature ORM in one deployable application. SQLite keeps local setup tiny; `DATABASE_URL` switches production to PostgreSQL. WhiteNoise serves versioned static assets, while uploaded media is local only in development and must use object storage in production.
+- `frontend/`: Next.js 16, React, and strict TypeScript. Designed for Vercel and custom dealer domains.
+- Django 5.2 modular monolith with Django REST Framework. Designed for Railway.
+- PostgreSQL in Docker Compose and production. SQLite remains available only for quick backend-only development.
+- Cloudflare R2/S3-compatible production media through `django-storages`; local media in development.
+- Database-backed transactional outbox and a separate worker process. Redis is not required.
 
-The `dealers` app currently contains the first vertical slice. Its code is divided into models (domain/persistence), forms (input validation), views and tenant-aware authorization, services (transactions/events), management commands (background delivery), and templates/static presentation. As the product grows, these modules can become separate Django apps without changing the public contract.
+## Run the complete system
 
-## Local setup
+Docker Desktop/Engine must be running. From `/home/l2euser/cars`:
 
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -r requirements.txt
-.venv/bin/python manage.py migrate
-.venv/bin/python manage.py seed_demo
-.venv/bin/python manage.py process_outbox
-.venv/bin/python manage.py runserver
+docker compose up --build
 ```
 
-Open <http://atelier.localhost:8000/> (or <http://127.0.0.1:8000/?dealer=atelier-motors>). Dashboard login: `owner` / `demo-pass-2026`. These credentials and generated illustrations are development fixtures only.
+The first start creates PostgreSQL, applies migrations, and loads clearly labelled development fixtures. Open:
 
-Run checks with:
+- Next.js dealer website: http://localhost:3000
+- Dealer login: http://localhost:3000/dashboard/login
+- Django REST API: http://localhost:8001/api/v1/site/ (tenant header normally comes from Next.js)
+- Django administration/API fallback: http://localhost:8001/admin/
+
+Development login:
+
+```text
+username: owner
+password: demo-pass-2026
+```
+
+The React dashboard can change prices, website publication, availability, appointment workflow, and offer decisions. The worker sends database-backed marketplace events every ten seconds.
+
+Stop without deleting data:
+
+```bash
+docker compose down
+```
+
+Delete development containers and PostgreSQL/media volumes only when you intentionally want a clean database:
+
+```bash
+docker compose down --volumes
+```
+
+If port 3000 or 8001 is occupied, stop the process using it before starting Compose. `docker compose ps` shows service health.
+
+## Run checks
 
 ```bash
 .venv/bin/python manage.py check
 .venv/bin/python manage.py test
+cd frontend
+npm install
+npm run typecheck
+npm run build
 ```
 
-## Demonstration
+The test suite covers tenant isolation, roles, publication boundaries, offers, out-of-order/duplicate events, visibility ownership, withdrawals, and DRF authentication. The production Next build validates server and client TypeScript.
 
-1. Visit the homepage and inventory; cards come from persisted listings.
-2. Sign in, open **Inventory**, edit a published car, and change its price.
-3. Run `.venv/bin/python manage.py process_outbox`. In `/admin/dealers/marketplacelisting/`, its dealer-owned snapshot has the new price while visibility remains `Pending review` (or any admin-selected visibility).
-4. Mark the car Sold and save, then process the outbox again. Its dealer site displays Sold and the simulator snapshot becomes Sold without changing the marketplace administrator's visibility choice.
-5. Set Website publication to Unpublished. The delivered `vehicle.withdrawn.v1` forces simulator visibility to Withdrawn so the marketplace cannot continue advertising it publicly.
+## Multi-domain development
 
-For continuous delivery, run `process_outbox` every minute through a platform scheduler. The web application remains available if delivery fails; failures, attempt counts, and errors are shown in the dashboard and retried with backoff.
+Production requests use their incoming hostname. Next forwards it as `X-Dealer-Host`; Django resolves the unique `DealerDomain` and independently re-checks membership on private operations. `DEALER_HOST_OVERRIDE=atelier.localhost` gives Docker a predictable development tenant. Remove that override in Vercel.
 
-## Production checklist
+For two local dealers, add `DealerDomain` rows such as `atelier.localhost` and `second.localhost`, remove the override, then visit `http://atelier.localhost:3000` and `http://second.localhost:3000`. Browsers resolve `*.localhost` to loopback without owning domains.
 
-Use PostgreSQL, a strong `SECRET_KEY`, `DEBUG=0`, explicit `ALLOWED_HOSTS`/`CSRF_TRUSTED_ORIGINS`, HTTPS and secure cookies at the deployment edge. Configure S3-compatible private object storage plus image moderation/scanning, run `collectstatic`, schedule `process_outbox`, centralize logs/errors, rate-limit login and public forms at the proxy/application edge, and configure encrypted backups with restore drills. Add transactional email/SMS only after consent and retention policies are approved. The current release validates image type/size but production upload scanning and object storage are deliberately deployment responsibilities.
+## Marketplace delivery
 
-## Staff workflow and media controls
+Dealer changes and immutable versioned events commit in one PostgreSQL transaction. The worker POSTs signed events with stable IDs and retries failed records with exponential backoff. Without `MARKETPLACE_WEBHOOK_URL`, it writes to the local simulator. Marketplace review/visibility remains separate and cannot be changed by dealer staff. See [`docs/marketplace-contract.md`](docs/marketplace-contract.md).
 
-Buyer requests now support scheduled times, appointment outcomes, offer decisions, counteroffers, and staff notes. “Offer accepted” is intentionally a negotiation state and never marks a vehicle Sold. Every workflow update creates a tenant-scoped audit entry. Published vehicle image uploads, ordering changes, and removals increment the vehicle version and queue marketplace synchronization. Public buyer-request submissions are limited per dealer and source address, and each tenant exposes `/sitemap.xml` and `/robots.txt`.
+## Deployment
+
+See [`docs/deployment.md`](docs/deployment.md) and [`.env.example`](.env.example). Never commit actual credentials.

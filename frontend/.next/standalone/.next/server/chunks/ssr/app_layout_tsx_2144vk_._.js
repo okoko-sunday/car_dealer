@@ -1,3 +1,3 @@
-module.exports=[33290,a=>{"use strict";var b=a.i(7997);a.s(["default",0,function({children:a}){return(0,b.jsx)("html",{lang:"en",children:(0,b.jsxs)("body",{children:[(0,b.jsx)("a",{className:"skip",href:"#main",children:"Skip to content"}),a]})})},"metadata",0,{title:{default:"Dealer showroom",template:"%s · Dealer showroom"},description:"Distinctive vehicles, thoughtfully presented."}])},70864,function(a){a.n(a.i(33290))}];
+module.exports=[33290,a=>{"use strict";var b=a.i(7997);a.s(["default",0,function({children:a}){return(0,b.jsx)("html",{lang:"en",children:(0,b.jsxs)("body",{children:[(0,b.jsx)("a",{className:"skip",href:"#main",children:"Skip to content"}),a]})})},"metadata",0,{title:{default:"Atelier Motors",template:"%s — Atelier Motors"},description:"Considered cars, clearly presented.",robots:{index:!0,follow:!0}}])},70864,function(a){a.n(a.i(33290))}];
 
 //# sourceMappingURL=app_layout_tsx_2144vk_._.js.map

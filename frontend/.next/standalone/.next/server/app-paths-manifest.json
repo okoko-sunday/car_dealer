@@ -4,6 +4,8 @@
   "/api/inquiries/[slug]/route": "app/api/inquiries/[slug]/route.js",
   "/api/logout/route": "app/api/logout/route.js",
   "/api/session/route": "app/api/session/route.js",
+  "/api/staff/requests/[id]/route": "app/api/staff/requests/[id]/route.js",
+  "/api/staff/vehicles/[id]/route": "app/api/staff/vehicles/[id]/route.js",
   "/dashboard/inventory/page": "app/dashboard/inventory/page.js",
   "/dashboard/login/page": "app/dashboard/login/page.js",
   "/dashboard/page": "app/dashboard/page.js",

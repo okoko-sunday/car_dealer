@@ -4,6 +4,8 @@
   "/api/inquiries/[slug]/route": "/api/inquiries/[slug]",
   "/api/logout/route": "/api/logout",
   "/api/session/route": "/api/session",
+  "/api/staff/requests/[id]/route": "/api/staff/requests/[id]",
+  "/api/staff/vehicles/[id]/route": "/api/staff/vehicles/[id]",
   "/dashboard/inventory/page": "/dashboard/inventory",
   "/dashboard/login/page": "/dashboard/login",
   "/dashboard/page": "/dashboard",
