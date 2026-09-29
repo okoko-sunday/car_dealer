@@ -1,0 +1,20 @@
+{% load static %}<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="{{ dealer.tagline|default:'Distinctive vehicles, thoughtfully presented.' }}"><link rel="canonical" href="{{ request.scheme }}://{{ request.get_host }}{{ request.path }}"><meta property="og:site_name" content="{{ dealer.name }}"><meta property="og:title" content="{% block og_title %}{{ dealer.name }}{% endblock %}"><meta property="og:description" content="{{ dealer.tagline }}"><meta property="og:type" content="website">
+  <title>{% block title %}{{ dealer.name }}{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/site.css' %}">
+  <style>:root{--brand:{{ dealer.primary_color|default:'#C8532D' }};--accent:{{ dealer.accent_color|default:'#E8C17A' }}}</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="site-header"><a class="wordmark" href="{% url 'home' %}">{% if dealer.logo %}<img src="{{ dealer.logo.url }}" alt="{{ dealer.name }}">{% else %}{{ dealer.name }}{% endif %}</a>
+  <nav aria-label="Main navigation"><a href="{% url 'inventory' %}">Inventory</a><a href="{% url 'home' %}#story">Our story</a><a href="{% url 'home' %}#contact">Visit us</a>{% if user.is_authenticated %}<a href="{% url 'dashboard' %}">Dashboard</a>{% endif %}</nav>
+  <a class="button button-small" href="{% url 'inventory' %}">Find a car</a></header>
+{% if messages %}<div class="messages" aria-live="polite">{% for message in messages %}<p>{{ message }}</p>{% endfor %}</div>{% endif %}
+<main id="main">{% block content %}{% endblock %}</main>
+<footer id="contact"><div><strong>{{ dealer.name }}</strong><p>{{ dealer.tagline }}</p></div><div><span>Showroom</span><p>{{ dealer.address|linebreaksbr }}</p><p>{{ dealer.opening_hours }}</p></div><div><span>Talk to us</span><p><a href="tel:{{ dealer.phone }}">{{ dealer.phone }}</a><br><a href="mailto:{{ dealer.email }}">{{ dealer.email }}</a></p></div><p class="fineprint">Vehicle details and condition are dealer-provided unless explicitly stated otherwise.</p></footer>
+</body></html>

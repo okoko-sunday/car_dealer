@@ -1,0 +1,14 @@
+{% extends 'dashboard/base.html' %}{% block content %}
+<header class="dash-head"><div><span class="eyebrow">Sales desk</span><h1>Buyer requests</h1></div></header>
+<div class="request-list">{% for item in requests %}<article class="panel request-item">
+  <div><span class="status {{ item.status }}">{{ item.get_status_display }}</span><h2>{{ item.name }}</h2><p>{{ item.get_kind_display }} for <strong>{{ item.vehicle.title }}</strong></p><p>{{ item.message|default:'No message supplied.' }}</p><small><a href="mailto:{{ item.email }}">{{ item.email }}</a> · <a href="tel:{{ item.phone }}">{{ item.phone }}</a>{% if item.offer_amount %} · Buyer offer ₦{{ item.offer_amount|floatformat:'0g' }}{% endif %}</small>
+  {% if item.scheduled_for %}<p><strong>Scheduled:</strong> {{ item.scheduled_for|date:'D, j M Y · H:i' }}</p>{% endif %}{% if item.counter_offer_amount %}<p><strong>Counteroffer:</strong> ₦{{ item.counter_offer_amount|floatformat:'0g' }}</p>{% endif %}</div>
+  <form method="post" action="{% url 'request_status' item.pk %}" class="workflow-form">{% csrf_token %}
+    <label>Status<select name="status">{% for value,label in request_statuses %}<option value="{{ value }}" {% if item.status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Scheduled time<input type="datetime-local" name="scheduled_for" value="{{ item.scheduled_for|date:'Y-m-d\\TH:i' }}"></label>
+    <label>Appointment outcome<select name="appointment_outcome">{% for value,label in appointment_outcomes %}<option value="{{ value }}" {% if item.appointment_outcome == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+    <label>Offer decision<select name="offer_status" {% if item.kind != 'offer' %}disabled{% endif %}>{% for value,label in offer_statuses %}<option value="{{ value }}" {% if item.offer_status == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>{% if item.kind != 'offer' %}<input type="hidden" name="offer_status" value="not_applicable">{% endif %}</label>
+    <label>Counteroffer amount<input type="number" min="0" step="0.01" name="counter_offer_amount" value="{{ item.counter_offer_amount|default_if_none:'' }}" {% if item.kind != 'offer' %}disabled{% endif %}></label>
+    <label>Staff note<textarea name="staff_note">{{ item.staff_note }}</textarea></label><p class="form-help">Accepting an offer records the negotiation outcome only. It does not complete a sale or mark the car Sold.</p><button class="button button-small">Update workflow</button>
+  </form></article>{% empty %}<div class="empty"><h2>No requests yet.</h2><p>New inquiries, viewing requests, and offers will appear here.</p></div>{% endfor %}</div>
+{% endblock %}

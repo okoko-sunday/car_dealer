@@ -1,0 +1,1 @@
+{% extends 'dashboard/base.html' %}{% block content %}<header class="dash-head"><div><span class="eyebrow">Brand and profile</span><h1>Website settings</h1></div></header><form method="post" enctype="multipart/form-data" class="panel form-card settings-form">{% csrf_token %}{{ form.as_div }}<button class="button" type="submit">Save website settings</button></form>{% endblock %}

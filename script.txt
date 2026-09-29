@@ -1,0 +1,44 @@
+Username: owner
+Password: demo-pass-2026
+
+
+
+
+Open a terminal in `/home/l2euser/cars` and run:
+
+```bash
+.venv/bin/python manage.py runserver
+```
+
+Then visit:
+
+http://127.0.0.1:8000/?dealer=atelier-motors
+
+For the dashboard, visit:
+
+http://127.0.0.1:8000/login/?dealer=atelier-motors
+
+Login with:
+
+```text
+Username: owner
+Password: demo-pass-2026
+```
+
+If this is your first run, initialize everything once:
+
+```bash
+cd /home/l2euser/cars
+.venv/bin/python manage.py migrate
+.venv/bin/python manage.py seed_demo
+.venv/bin/python manage.py process_outbox
+.venv/bin/python manage.py runserver
+```
+
+After that, you normally only need:
+
+```bash
+.venv/bin/python manage.py runserver
+```
+
+Press `Ctrl+C` to stop the server.
