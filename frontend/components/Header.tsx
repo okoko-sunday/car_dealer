@@ -1,0 +1,2 @@
+import Link from "next/link";import type {Dealer} from "@/lib/types";
+export function Header({dealer}: {dealer:Dealer}){return <header className="siteHeader"><Link className="wordmark" href="/">{dealer.name}</Link><nav aria-label="Main navigation"><Link href="/inventory">Inventory</Link><Link href="/#story">Our story</Link><Link href="/#contact">Visit us</Link></nav><Link className="button small" href="/inventory">Find a car</Link></header>}

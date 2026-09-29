@@ -5,7 +5,7 @@ class DealerTenantMiddleware:
     def __init__(self, get_response): self.get_response = get_response
     def __call__(self, request):
         request.dealer = None
-        host = request.get_host().split(":")[0].lower()
+        host = request.headers.get("X-Dealer-Host", request.get_host()).split(":")[0].lower()
         domain = DealerDomain.objects.select_related("dealer").filter(hostname=host, dealer__is_active=True).first()
         if domain:
             request.dealer = domain.dealer

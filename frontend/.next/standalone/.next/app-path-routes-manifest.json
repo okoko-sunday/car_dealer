@@ -1,0 +1,14 @@
+{
+  "/_global-error/page": "/_global-error",
+  "/_not-found/page": "/_not-found",
+  "/api/inquiries/[slug]/route": "/api/inquiries/[slug]",
+  "/api/logout/route": "/api/logout",
+  "/api/session/route": "/api/session",
+  "/dashboard/inventory/page": "/dashboard/inventory",
+  "/dashboard/login/page": "/dashboard/login",
+  "/dashboard/page": "/dashboard",
+  "/dashboard/requests/page": "/dashboard/requests",
+  "/inventory/page": "/inventory",
+  "/page": "/",
+  "/vehicles/[slug]/page": "/vehicles/[slug]"
+}

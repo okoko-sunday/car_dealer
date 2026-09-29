@@ -1,0 +1,35 @@
+from django.contrib.auth import get_user_model
+from django.test import override_settings
+from rest_framework.test import APITestCase
+from .models import BuyerRequest, Dealer, DealerDomain, Membership, OutboxEvent, Vehicle
+
+@override_settings(ALLOWED_HOSTS=["*"])
+class ApiTests(APITestCase):
+    def setUp(self):
+        self.a=Dealer.objects.create(name="Dealer A",slug="dealer-a",email="a@example.test",phone="1",address="Lagos")
+        self.b=Dealer.objects.create(name="Dealer B",slug="dealer-b",email="b@example.test",phone="2",address="Abuja")
+        DealerDomain.objects.create(dealer=self.a,hostname="a.test"); DealerDomain.objects.create(dealer=self.b,hostname="b.test")
+        self.user=get_user_model().objects.create_user("owner",password="secret")
+        Membership.objects.create(dealer=self.a,user=self.user,role=Membership.Role.OWNER)
+        self.car=Vehicle.objects.create(dealer=self.a,slug="lexus",make="Lexus",model="RX",year=2022,price=500,mileage_km=10,transmission="Auto",fuel_type="Petrol",condition="Pre-owned",location="Lagos",description="Dealer A car",publication_status=Vehicle.Publication.PUBLISHED)
+        Vehicle.objects.create(dealer=self.b,slug="hidden-tenant",make="Toyota",model="Camry",year=2020,price=200,mileage_km=20,transmission="Auto",fuel_type="Petrol",condition="Pre-owned",location="Abuja",description="Dealer B car",publication_status=Vehicle.Publication.PUBLISHED)
+    def headers(self,host="a.test"): return {"HTTP_X_DEALER_HOST":host}
+    def login(self,host="a.test"):
+        response=self.client.post("/api/v1/auth/token/",{"username":"owner","password":"secret"},format="json",**self.headers(host))
+        if response.status_code==200:self.client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
+        return response
+    def test_public_api_is_tenant_scoped(self):
+        response=self.client.get("/api/v1/vehicles/",**self.headers())
+        self.assertEqual(response.status_code,200); self.assertEqual(len(response.data),1); self.assertEqual(response.data[0]["slug"],"lexus")
+    def test_login_rejects_other_dealer(self):
+        self.assertEqual(self.login("b.test").status_code,403)
+    def test_staff_api_requires_membership_for_selected_tenant(self):
+        self.assertEqual(self.login().status_code,200)
+        self.assertEqual(self.client.get("/api/v1/staff/overview/",**self.headers("b.test")).status_code,403)
+    def test_public_offer_is_pending_and_not_a_sale(self):
+        response=self.client.post("/api/v1/vehicles/lexus/",{"kind":"offer","name":"Buyer","email":"buyer@example.test","phone":"0800","message":"Offer","offer_amount":"400","consent":True},format="json",**self.headers())
+        self.assertEqual(response.status_code,201); inquiry=BuyerRequest.objects.get(); self.assertEqual(inquiry.offer_status,"pending")
+        self.car.refresh_from_db(); self.assertEqual(self.car.availability,"available")
+    def test_staff_update_versions_and_queues_event(self):
+        self.login(); response=self.client.patch(f"/api/v1/staff/vehicles/{self.car.id}/",{"price":"550.00"},format="json",**self.headers())
+        self.assertEqual(response.status_code,200); self.assertEqual(response.data["version"],2); self.assertTrue(OutboxEvent.objects.filter(aggregate_id=self.car.id,aggregate_version=2).exists())

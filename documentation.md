@@ -87,3 +87,15 @@ The dealer website must remain usable if the marketplace is temporarily unavaila
 Use sample dealer content and sample car images only as development fixtures, clearly labelled as such. Keep the site ready to replace them with real dealer assets.
 
 If a decision is not specified, make a reasonable choice and document it. Ask me only when a missing answer blocks a major business decision. At the end, report what works, what was tested, what remains, and the exact steps to run and inspect the product locally.
+## Required technology and infrastructure
+
+- Frontend: Next.js, React, and TypeScript for public dealer websites and dealer dashboard.
+- Backend: Python, Django, and Django REST Framework for authentication, dealer management, inventory, buyer requests, permissions, and marketplace integration.
+- Database: PostgreSQL with migrations, constraints, and query-appropriate indexes.
+- Media: Cloudflare R2 or another S3-compatible object store; local storage only in development.
+- Background work: a durable first-release job mechanism for marketplace delivery and media processing, with documented retries.
+- Deployment: Next.js on Vercel; Django API and PostgreSQL on Railway; portable environment configuration.
+- Domains: one frontend and backend deployment must resolve multiple dealer-owned domains, with safe local multi-dealer testing.
+- The future marketplace remains a separate project/deployment and consumes a versioned authenticated contract. Dealer backend owns dealer-car facts; marketplace owns review and public visibility.
+- Use a modular-monolith dealer backend. Do not add Kubernetes, Redis, or search infrastructure without a measured need.
+- Docker Compose must run frontend, backend, and PostgreSQL locally. Include example environment configuration, migrations, sample data, and exact start/check commands.
