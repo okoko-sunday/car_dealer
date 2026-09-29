@@ -12,5 +12,6 @@
   "/dashboard/requests/page": "/dashboard/requests",
   "/inventory/page": "/inventory",
   "/page": "/",
+  "/showroom/page": "/showroom",
   "/vehicles/[slug]/page": "/vehicles/[slug]"
 }

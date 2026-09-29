@@ -45,5 +45,4 @@ Press `Ctrl+C` to stop the server.
 
 
 
-#e4bd75
-#b94d2d
+docker compose up --build

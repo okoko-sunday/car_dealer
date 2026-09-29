@@ -7,6 +7,7 @@
     "[project]/app/dashboard/requests/page": [],
     "[project]/app/inventory/page": [],
     "[project]/app/page": [],
+    "[project]/app/showroom/page": [],
     "[project]/app/vehicles/[slug]/page": []
   },
   "appUsingSizeAdjust": false,

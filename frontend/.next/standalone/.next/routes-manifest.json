@@ -115,6 +115,12 @@
       "regex": "^/inventory(?:/)?$",
       "routeKeys": {},
       "namedRegex": "^/inventory(?:/)?$"
+    },
+    {
+      "page": "/showroom",
+      "regex": "^/showroom(?:/)?$",
+      "routeKeys": {},
+      "namedRegex": "^/showroom(?:/)?$"
     }
   ],
   "dataRoutes": [],
