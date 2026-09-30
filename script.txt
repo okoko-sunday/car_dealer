@@ -46,3 +46,6 @@ Press `Ctrl+C` to stop the server.
 
 
 docker compose up --build
+
+
+the showroom still uses the color i dont want

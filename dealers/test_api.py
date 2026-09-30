@@ -21,6 +21,14 @@ class ApiTests(APITestCase):
     def test_public_api_is_tenant_scoped(self):
         response=self.client.get("/api/v1/vehicles/",**self.headers())
         self.assertEqual(response.status_code,200); self.assertEqual(len(response.data),1); self.assertEqual(response.data[0]["slug"],"lexus")
+    def test_public_inventory_search_availability_and_sort(self):
+        Vehicle.objects.create(dealer=self.a,slug="reserved-toyota",make="Toyota",model="Corolla",year=2021,price=300,mileage_km=20,transmission="Auto",fuel_type="Petrol",condition="Pre-owned",location="Lagos",description="Reserved family sedan",publication_status=Vehicle.Publication.PUBLISHED,availability=Vehicle.Availability.RESERVED)
+        search=self.client.get("/api/v1/vehicles/?q=toyota",**self.headers())
+        self.assertEqual([item["slug"] for item in search.data],["reserved-toyota"])
+        available=self.client.get("/api/v1/vehicles/?availability=available",**self.headers())
+        self.assertEqual([item["slug"] for item in available.data],["lexus"])
+        ordered=self.client.get("/api/v1/vehicles/?sort=price_low",**self.headers())
+        self.assertEqual([item["slug"] for item in ordered.data],["reserved-toyota","lexus"])
     def test_login_rejects_other_dealer(self):
         self.assertEqual(self.login("b.test").status_code,403)
     def test_staff_api_requires_membership_for_selected_tenant(self):
