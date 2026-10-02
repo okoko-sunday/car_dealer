@@ -49,3 +49,56 @@ docker compose up --build
 
 
 the showroom still uses the color i dont want
+
+
+Log in with:- Username: owner
+- Password: demo-pass-2026
+
+
+
+
+
+
+You are right to be confused. Please treat http://localhost:3000 as the actual product.
+Port 8001 is the internal Django backend. I should not have directed you there as though it were a second finished interface. Its pages are older development utilities, not part of the final user experience.
+The intended structure is:
+- localhost:3000 — public dealer website and professional dealer dashboard
+- localhost:8001 — internal API used behind the scenes by the website
+- PostgreSQL — internal database
+- Worker — internal marketplace synchronization process
+A dealer should only visit:
+- Public website: http://localhost:3000 
+- Dealer login: http://localhost:3000/dashboard/login
+- Dealer dashboard: http://localhost:3000/dashboard
+- Inventory management: http://localhost:3000/dashboard/inventory
+The reason image uploading is currently only available through the old 8001 interface is that this feature has backend support but has not yet been connected to the polished Next.js dashboard.
+So the product is not finished until image uploading, vehicle creation/editing, settings, and staff management are available through port 3000. Going forward, we should build everything into the interface you already like and keep port 8001 invisible.
+
+
+
+
+Let also include the  Also worth a look , also when a car is clicked when http://localhost:8001 is visited it shows a section that says Also worth a look that shows some limited number of cars, can we also implement that because that was a lovely section that show like cars or recently uploaded, or most viewed cars, this should be done professionally
+
+
+
+
+Image management is now integrated into the premium dashboard at:
+http://localhost:3000/dashboard/inventory
+Log in through http://localhost:3000/dashboard/login using:
+- Username: owner
+- Password: demo-pass-2026
+For each vehicle, open Vehicle media. You can now:
+- Select and preview an image before uploading
+- Add required accessible image descriptions
+- Upload JPEG, PNG, or WebP images up to 8 MB
+- See the complete vehicle gallery
+- Set the cover photo by moving an image earlier
+- Reorder photos
+- Remove photos with confirmation
+- Use the interface responsively on desktop and mobile
+Every operation is tenant-authorized, increments the vehicle version, records activity, and queues the appropriate marketplace update.
+
+
+
+
+

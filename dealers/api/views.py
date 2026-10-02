@@ -1,4 +1,6 @@
 from django.core.cache import cache
+from django.core.paginator import Paginator, EmptyPage
+from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
@@ -9,10 +11,10 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from dealers.models import AuditEntry, BuyerRequest, Membership, OutboxEvent, Vehicle
+from dealers.models import AuditEntry, BuyerRequest, Membership, OutboxEvent, Vehicle, VehicleImage
 from dealers.services import record_vehicle_change
 from .permissions import CanManageInventory, IsDealerStaff
-from .serializers import BuyerRequestCreateSerializer, BuyerRequestSerializer, DealerSerializer, VehicleSerializer, VehicleWriteSerializer
+from .serializers import BuyerRequestCreateSerializer, BuyerRequestSerializer, DealerSerializer, VehicleSerializer, VehicleWriteSerializer, VehicleImageUploadSerializer
 
 def dealer_or_404(request):
     if not getattr(request,"dealer",None):
@@ -69,7 +71,18 @@ class StaffOverview(APIView):
 
 class StaffVehicles(APIView):
     permission_classes=[IsDealerStaff]
-    def get(self,request): return Response(VehicleSerializer(Vehicle.objects.filter(dealer=request.dealer).prefetch_related("images").order_by("-updated_at"),many=True,context={"request":request}).data)
+    def get(self,request):
+        qs=Vehicle.objects.filter(dealer=request.dealer).prefetch_related("images")
+        query=request.query_params.get("q","").strip()
+        if query: qs=qs.filter(Q(make__icontains=query)|Q(model__icontains=query)|Q(slug__icontains=query)|Q(location__icontains=query))
+        publication=request.query_params.get("publication","")
+        if publication in Vehicle.Publication.values: qs=qs.filter(publication_status=publication)
+        availability=request.query_params.get("availability","")
+        if availability in Vehicle.Availability.values: qs=qs.filter(availability=availability)
+        paginator=Paginator(qs.order_by("-updated_at"),12)
+        try: page=paginator.page(max(1,int(request.query_params.get("page",1))))
+        except (ValueError,EmptyPage): page=paginator.page(1 if not paginator.num_pages else paginator.num_pages)
+        return Response({"results":VehicleSerializer(page.object_list,many=True,context={"request":request}).data,"count":paginator.count,"page":page.number,"page_size":12,"pages":paginator.num_pages,"has_previous":page.has_previous(),"has_next":page.has_next()})
     def post(self,request):
         if request.membership.role not in {Membership.Role.OWNER,Membership.Role.MANAGER}: return Response(status=403)
         serializer=VehicleWriteSerializer(data=request.data); serializer.is_valid(raise_exception=True)
@@ -95,3 +108,38 @@ class StaffRequests(APIView):
         item=get_object_or_404(BuyerRequest,pk=pk,dealer=request.dealer); serializer=BuyerRequestSerializer(item,data=request.data,partial=True); serializer.is_valid(raise_exception=True); item=serializer.save()
         AuditEntry.objects.create(dealer=request.dealer,actor=request.user,entity_type="buyer_request",entity_id=str(item.id),action="buyer_request.updated",data={"status":item.status,"offer_status":item.offer_status})
         return Response(BuyerRequestSerializer(item).data)
+
+class StaffVehicleImages(APIView):
+    permission_classes=[CanManageInventory]
+    def post(self,request,pk):
+        vehicle=get_object_or_404(Vehicle.objects.prefetch_related("images"),pk=pk,dealer=request.dealer)
+        serializer=VehicleImageUploadSerializer(data=request.data); serializer.is_valid(raise_exception=True)
+        with transaction.atomic():
+            previous=Vehicle.objects.get(pk=vehicle.pk)
+            position=(vehicle.images.order_by("-position").values_list("position",flat=True).first() or -1)+1
+            serializer.save(vehicle=vehicle,position=position)
+            vehicle.version+=1; vehicle.save(update_fields=["version","updated_at"])
+            record_vehicle_change(vehicle,request.user,"vehicle.image_added",previous)
+        vehicle.refresh_from_db()
+        return Response(VehicleSerializer(vehicle,context={"request":request}).data,status=201)
+
+class StaffVehicleImageDetail(APIView):
+    permission_classes=[CanManageInventory]
+    def delete(self,request,pk,image_pk):
+        image=get_object_or_404(VehicleImage.objects.select_related("vehicle"),pk=image_pk,vehicle_id=pk,vehicle__dealer=request.dealer)
+        vehicle=image.vehicle
+        with transaction.atomic():
+            previous=Vehicle.objects.get(pk=vehicle.pk); image.delete(); vehicle.version+=1; vehicle.save(update_fields=["version","updated_at"]); record_vehicle_change(vehicle,request.user,"vehicle.image_removed",previous)
+        return Response(VehicleSerializer(Vehicle.objects.prefetch_related("images").get(pk=vehicle.pk),context={"request":request}).data)
+    def patch(self,request,pk,image_pk):
+        image=get_object_or_404(VehicleImage.objects.select_related("vehicle"),pk=image_pk,vehicle_id=pk,vehicle__dealer=request.dealer)
+        direction=request.data.get("direction")
+        if direction not in {"up","down"}: return Response({"detail":"Direction must be up or down."},status=400)
+        lookup={"vehicle":image.vehicle,"position__lt" if direction=="up" else "position__gt":image.position}
+        other=VehicleImage.objects.filter(**lookup).order_by("-position" if direction=="up" else "position").first()
+        if other:
+            with transaction.atomic():
+                previous=Vehicle.objects.get(pk=image.vehicle_id); old,swap=image.position,other.position
+                image.position=65535; image.save(update_fields=["position"]); other.position=old; other.save(update_fields=["position"]); image.position=swap; image.save(update_fields=["position"])
+                vehicle=image.vehicle; vehicle.version+=1; vehicle.save(update_fields=["version","updated_at"]); record_vehicle_change(vehicle,request.user,"vehicle.images_reordered",previous)
+        return Response(VehicleSerializer(Vehicle.objects.prefetch_related("images").get(pk=pk),context={"request":request}).data)

@@ -48,3 +48,18 @@ class BuyerRequestSerializer(serializers.ModelSerializer):
         model = BuyerRequest
         fields = ["id","vehicle","vehicle_title","kind","status","name","email","phone","message","preferred_at","offer_amount","counter_offer_amount","offer_status","scheduled_for","appointment_outcome","staff_note","created_at","updated_at"]
         read_only_fields = ["id","vehicle","vehicle_title","kind","name","email","phone","message","preferred_at","offer_amount","created_at","updated_at"]
+
+class VehicleImageUploadSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleImage
+        fields = ["image","alt_text"]
+    def validate_image(self, image):
+        if image.size > 8 * 1024 * 1024:
+            raise serializers.ValidationError("Images must be no larger than 8 MB.")
+        if getattr(image,"content_type","") not in {"image/jpeg","image/png","image/webp"}:
+            raise serializers.ValidationError("Use JPEG, PNG, or WebP.")
+        return image
+    def validate_alt_text(self, value):
+        value=value.strip()
+        if not value: raise serializers.ValidationError("Describe the image for buyers using screen readers.")
+        return value

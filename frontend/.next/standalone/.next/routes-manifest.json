@@ -47,6 +47,23 @@
       "namedRegex": "^/api/staff/vehicles/(?<nxtPid>[^/]+?)(?:/)?$"
     },
     {
+      "page": "/api/staff/vehicles/[id]/images",
+      "regex": "^/api/staff/vehicles/([^/]+?)/images(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid"
+      },
+      "namedRegex": "^/api/staff/vehicles/(?<nxtPid>[^/]+?)/images(?:/)?$"
+    },
+    {
+      "page": "/api/staff/vehicles/[id]/images/[imageId]",
+      "regex": "^/api/staff/vehicles/([^/]+?)/images/([^/]+?)(?:/)?$",
+      "routeKeys": {
+        "nxtPid": "nxtPid",
+        "nxtPimageId": "nxtPimageId"
+      },
+      "namedRegex": "^/api/staff/vehicles/(?<nxtPid>[^/]+?)/images/(?<nxtPimageId>[^/]+?)(?:/)?$"
+    },
+    {
       "page": "/vehicles/[slug]",
       "regex": "^/vehicles/([^/]+?)(?:/)?$",
       "routeKeys": {
