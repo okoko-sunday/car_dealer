@@ -77,7 +77,7 @@ So the product is not finished until image uploading, vehicle creation/editing, 
 
 
 
-Let also include the  Also worth a look , also when a car is clicked when http://localhost:8001 is visited it shows a section that says Also worth a look that shows some limited number of cars, can we also implement that because that was a lovely section that show like cars or recently uploaded, or most viewed cars, this should be done professionally
+
 
 
 

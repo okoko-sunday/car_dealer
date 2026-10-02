@@ -1,0 +1,21 @@
+"use client";
+
+import {FormEvent,useEffect,useRef,useState} from "react";
+import {useRouter} from "next/navigation";
+
+type Option={value:string;label:string;detail:string};
+const publication:Option[]=[{value:"",label:"All states",detail:"Published and working drafts"},{value:"published",label:"Published",detail:"Visible on the dealer website"},{value:"draft",label:"Draft",detail:"Private work in progress"},{value:"unpublished",label:"Unpublished",detail:"Withdrawn from the website"}];
+const availability:Option[]=[{value:"",label:"Any availability",detail:"Available, reserved and sold"},{value:"available",label:"Available",detail:"Open to buyer enquiries"},{value:"reserved",label:"Reserved",detail:"Temporarily held"},{value:"sold",label:"Sold",detail:"Completed inventory archive"}];
+
+function AdminChoice({label,value,options,onChange}:{label:string;value:string;options:Option[];onChange:(value:string)=>void}){
+ const [open,setOpen]=useState(false);const root=useRef<HTMLDivElement>(null);const selected=options.find(item=>item.value===value)||options[0];
+ useEffect(()=>{function outside(event:MouseEvent){if(!root.current?.contains(event.target as Node))setOpen(false)}function escape(event:KeyboardEvent){if(event.key==="Escape")setOpen(false)}document.addEventListener("mousedown",outside);document.addEventListener("keydown",escape);return()=>{document.removeEventListener("mousedown",outside);document.removeEventListener("keydown",escape)}},[]);
+ return <div className={`adminFilterChoice ${open?"isOpen":""}`} ref={root}><span className="adminFilterLabel">{label}</span><button className="adminChoiceTrigger" type="button" aria-expanded={open} aria-haspopup="listbox" onClick={()=>setOpen(current=>!current)}><span>{selected.label}</span><i aria-hidden="true"/></button><div className="adminChoiceMenu" role="listbox" aria-label={label}>{options.map(option=><button key={option.value||"all"} type="button" role="option" aria-selected={option.value===value} onClick={()=>{onChange(option.value);setOpen(false)}}><span><strong>{option.label}</strong><small>{option.detail}</small></span><b aria-hidden="true">{option.value===value?"✓":""}</b></button>)}</div></div>
+}
+
+export function AdminInventoryFilters({initialQuery="",initialPublication="",initialAvailability=""}:{initialQuery?:string;initialPublication?:string;initialAvailability?:string}){
+ const router=useRouter();const [query,setQuery]=useState(initialQuery);const [siteState,setSiteState]=useState(initialPublication);const [stockState,setStockState]=useState(initialAvailability);const [loading,setLoading]=useState(false);const active=Boolean(query.trim()||siteState||stockState);
+ function navigate(event?:FormEvent){event?.preventDefault();const params=new URLSearchParams();if(query.trim())params.set("q",query.trim());if(siteState)params.set("publication",siteState);if(stockState)params.set("availability",stockState);setLoading(true);router.push(`/dashboard/inventory${params.size?`?${params}`:""}`);window.setTimeout(()=>setLoading(false),450)}
+ function clear(){setQuery("");setSiteState("");setStockState("");setLoading(true);router.push("/dashboard/inventory");window.setTimeout(()=>setLoading(false),450)}
+ return <form className={`adminInventoryFilters premiumAdminFilters ${loading?"isLoading":""}`} onSubmit={navigate}><label className="adminSearch"><span className="adminFilterLabel">Search inventory</span><span className="adminSearchControl"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Make, model, location or listing slug"/>{query&&<button type="button" aria-label="Clear search" onClick={()=>setQuery("")}>×</button>}</span></label><AdminChoice label="Website state" value={siteState} options={publication} onChange={setSiteState}/><AdminChoice label="Availability" value={stockState} options={availability} onChange={setStockState}/><div className="adminFilterActions"><button className="button dark" type="submit">{loading?"Searching…":"Find vehicles"}<span>→</span></button>{active&&<button className="adminFilterReset" type="button" onClick={clear}>Reset</button>}</div></form>
+}

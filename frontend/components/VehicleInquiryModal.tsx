@@ -1,0 +1,10 @@
+"use client";
+
+import {useEffect,useRef,useState} from "react";
+import {InquiryForm} from "./InquiryForm";
+
+export function VehicleInquiryModal({slug,title,price,sold}:{slug:string;title:string;price:string;sold:boolean}){
+  const [open,setOpen]=useState(false);const closeButton=useRef<HTMLButtonElement>(null);
+  useEffect(()=>{document.body.classList.toggle("modalOpen",open);if(open)window.setTimeout(()=>closeButton.current?.focus(),80);function key(event:KeyboardEvent){if(event.key==="Escape")setOpen(false)}document.addEventListener("keydown",key);return()=>{document.body.classList.remove("modalOpen");document.removeEventListener("keydown",key)}},[open]);
+  return <><button className="button dark full viewingTrigger" type="button" onClick={()=>setOpen(true)}><span>{sold?"Ask about similar cars":"Arrange a viewing"}</span><b aria-hidden="true">↗</b></button>{open&&<div className="inquiryModal" role="dialog" aria-modal="true" aria-labelledby="inquiry-title" onMouseDown={event=>{if(event.target===event.currentTarget)setOpen(false)}}><div className="inquiryModalPanel"><header><div><span className="eyebrow light">Private appointment request</span><p>{title} · {price}</p></div><button ref={closeButton} type="button" aria-label="Close viewing request" onClick={()=>setOpen(false)}><span/><span/></button></header><div className="inquiryModalBody"><div className="inquiryModalIntro"><span className="modalIndex">01 / Request</span><h2 id="inquiry-title">{sold?"Let us find an alternative.":"See it for yourself."}</h2><p>{sold?"This vehicle is sold. Tell the team what interested you and they will suggest available alternatives.":"Share a suitable time and the dealer will contact you to confirm. Sending this form does not reserve or purchase the vehicle."}</p><div className="modalAssurance"><span>What happens next</span><ol><li>Request received</li><li>Dealer confirms availability</li><li>Viewing time agreed</li></ol></div></div><InquiryForm slug={slug} sold={sold}/></div></div></div>}</>
+}
