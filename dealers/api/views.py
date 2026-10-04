@@ -83,6 +83,7 @@ class StaffVehicles(APIView):
         try: page=paginator.page(max(1,int(request.query_params.get("page",1))))
         except (ValueError,EmptyPage): page=paginator.page(1 if not paginator.num_pages else paginator.num_pages)
         return Response({"results":VehicleSerializer(page.object_list,many=True,context={"request":request}).data,"count":paginator.count,"page":page.number,"page_size":12,"pages":paginator.num_pages,"has_previous":page.has_previous(),"has_next":page.has_next()})
+    @transaction.atomic
     def post(self,request):
         if request.membership.role not in {Membership.Role.OWNER,Membership.Role.MANAGER}: return Response(status=403)
         serializer=VehicleWriteSerializer(data=request.data); serializer.is_valid(raise_exception=True)
@@ -93,6 +94,7 @@ class StaffVehicles(APIView):
 
 class StaffVehicleDetail(APIView):
     permission_classes=[CanManageInventory]
+    @transaction.atomic
     def patch(self,request,pk):
         item=get_object_or_404(Vehicle,pk=pk,dealer=request.dealer); previous=Vehicle.objects.get(pk=pk)
         serializer=VehicleWriteSerializer(item,data=request.data,partial=True); serializer.is_valid(raise_exception=True); item=serializer.save(version=item.version+1)
@@ -116,7 +118,7 @@ class StaffVehicleImages(APIView):
         serializer=VehicleImageUploadSerializer(data=request.data); serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             previous=Vehicle.objects.get(pk=vehicle.pk)
-            position=(vehicle.images.order_by("-position").values_list("position",flat=True).first() or -1)+1
+            position=(last_position + 1) if (last_position := vehicle.images.order_by("-position").values_list("position",flat=True).first()) is not None else 0
             serializer.save(vehicle=vehicle,position=position)
             vehicle.version+=1; vehicle.save(update_fields=["version","updated_at"])
             record_vehicle_change(vehicle,request.user,"vehicle.image_added",previous)
