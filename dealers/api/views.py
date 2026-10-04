@@ -87,7 +87,7 @@ class StaffVehicles(APIView):
     def post(self,request):
         if request.membership.role not in {Membership.Role.OWNER,Membership.Role.MANAGER}: return Response(status=403)
         serializer=VehicleWriteSerializer(data=request.data); serializer.is_valid(raise_exception=True)
-        candidate=Vehicle(dealer=request.dealer,slug="pending",**serializer.validated_data); candidate.slug=slugify(candidate.title)
+        candidate=Vehicle(dealer=request.dealer,slug="pending",**serializer.validated_data); candidate.slug=f"{slugify(candidate.title)}-{candidate.id.hex[:8]}"
         if candidate.publication_status==Vehicle.Publication.PUBLISHED: candidate.published_at=timezone.now()
         candidate.save(); record_vehicle_change(candidate,request.user,"vehicle.created")
         return Response(VehicleSerializer(candidate,context={"request":request}).data,status=201)
