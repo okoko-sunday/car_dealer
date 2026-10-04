@@ -1,7 +1,7 @@
-from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage
 from django.db import transaction
 from django.db.models import Q
+from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
@@ -55,10 +55,10 @@ def vehicles(request):
 def vehicle_detail(request,slug):
     vehicle=get_object_or_404(Vehicle.objects.prefetch_related("images"),dealer=dealer_or_404(request),slug=slug,publication_status=Vehicle.Publication.PUBLISHED)
     if request.method=="GET": return Response(VehicleSerializer(vehicle,context={"request":request}).data)
-    address=request.META.get("REMOTE_ADDR","unknown"); key=f"api-inquiry:{vehicle.dealer_id}:{address}"
-    if cache.get(key,0)>=5: return Response({"detail":"Please wait before sending another request."},status=429)
-    if not cache.add(key,1,600): cache.incr(key)
     serializer=BuyerRequestCreateSerializer(data=request.data); serializer.is_valid(raise_exception=True)
+    recent=BuyerRequest.objects.filter(dealer=vehicle.dealer,created_at__gte=timezone.now()-timedelta(minutes=10))
+    if recent.filter(Q(email__iexact=serializer.validated_data["email"])|Q(phone=serializer.validated_data["phone"])).count()>=5:
+        return Response({"detail":"Please wait before sending another request."},status=429)
     kind=serializer.validated_data["kind"]; serializer.validated_data.pop("consent",None)
     item=serializer.save(dealer=vehicle.dealer,vehicle=vehicle,offer_status=BuyerRequest.OfferStatus.PENDING if kind==BuyerRequest.Kind.OFFER else BuyerRequest.OfferStatus.NOT_APPLICABLE)
     return Response({"id":item.id,"status":"received","next_step":"The dealer will contact you. No booking or sale is confirmed."},status=201)
