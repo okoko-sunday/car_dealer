@@ -1,3 +1,4 @@
+import {sameOrigin} from "@/lib/security";
 import {cookies} from "next/headers";
 import {NextRequest,NextResponse} from "next/server";
 const api=process.env.API_INTERNAL_URL||"http://127.0.0.1:8000";
