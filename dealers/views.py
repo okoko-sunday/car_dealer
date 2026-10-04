@@ -1,7 +1,8 @@
 from django.contrib import messages
-from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -36,16 +37,13 @@ def inventory(request):
     return render(request, "public/inventory.html", {"vehicles": items, "makes": makes, "q": q})
 
 def vehicle_detail(request, slug):
-    if request.method == "POST":
-        address = request.META.get("REMOTE_ADDR", "unknown")
-        key = f"buyer-request:{request.dealer.id if request.dealer else 'none'}:{address}"
-        if cache.get(key, 0) >= 5:
-            return render(request, "public/rate_limited.html", status=429)
-        if not cache.add(key, 1, timeout=600): cache.incr(key)
     dealer = require_dealer(request)
     vehicle = get_object_or_404(Vehicle.objects.prefetch_related("images"), dealer=dealer, slug=slug, publication_status=Vehicle.Publication.PUBLISHED)
     form = BuyerRequestForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
+        recent = BuyerRequest.objects.filter(dealer=dealer, created_at__gte=timezone.now()-timedelta(minutes=10))
+        if recent.filter(Q(email__iexact=form.cleaned_data["email"]) | Q(phone=form.cleaned_data["phone"])).count() >= 5:
+            return render(request, "public/rate_limited.html", status=429)
         inquiry = form.save(commit=False); inquiry.dealer = dealer; inquiry.vehicle = vehicle; inquiry.offer_status = BuyerRequest.OfferStatus.PENDING if inquiry.kind == BuyerRequest.Kind.OFFER else BuyerRequest.OfferStatus.NOT_APPLICABLE; inquiry.save()
         messages.success(request, "Request received. The dealer will contact you; no sale or booking is confirmed yet.")
         return redirect(f"{reverse('vehicle_detail', args=[slug])}#request")
