@@ -1,4 +1,6 @@
 from io import BytesIO
+from unittest.mock import patch
+from django.db import IntegrityError
 from PIL import Image
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -51,6 +53,23 @@ class ApiTests(APITestCase):
         image_id=response.data["images"][0]["id"]
         denied=self.client.delete(f"/api/v1/staff/vehicles/{other.id}/images/{image_id}/",**self.headers())
         self.assertEqual(denied.status_code,404)
+    def test_second_gallery_upload_gets_distinct_position(self):
+        self.login()
+        for index in range(2):
+            buffer=BytesIO(); Image.new("RGB",(8,8),"white").save(buffer,format="PNG")
+            upload=SimpleUploadedFile(f"vehicle-{index}.png",buffer.getvalue(),content_type="image/png")
+            response=self.client.post(f"/api/v1/staff/vehicles/{self.car.id}/images/",{"image":upload,"alt_text":f"View {index}"},format="multipart",**self.headers())
+            self.assertEqual(response.status_code,201)
+        self.assertEqual([image["position"] for image in response.data["images"]],[0,1])
+
+    def test_failed_outbox_write_rolls_back_vehicle_price(self):
+        self.login()
+        with patch("dealers.services.OutboxEvent.objects.create",side_effect=IntegrityError("outbox unavailable")):
+            with self.assertRaises(IntegrityError):
+                self.client.patch(f"/api/v1/staff/vehicles/{self.car.id}/",{"price":"550.00"},format="json",**self.headers())
+        self.car.refresh_from_db()
+        self.assertEqual(self.car.price,500)
+
     def test_staff_inventory_is_paginated_and_filterable(self):
         self.login()
         for index in range(15):
