@@ -43,6 +43,8 @@ class BuyerRequestCreateSerializer(serializers.ModelSerializer):
         model = BuyerRequest
         fields = ["kind","name","email","phone","message","preferred_at","offer_amount","consent"]
     def validate(self, data):
+        if not data.get("consent"):
+            raise serializers.ValidationError({"consent":"Consent is required before sending a request."})
         if data.get("kind") == BuyerRequest.Kind.OFFER and not data.get("offer_amount"):
             raise serializers.ValidationError({"offer_amount":"An offer amount is required."})
         return data
