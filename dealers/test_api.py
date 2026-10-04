@@ -43,6 +43,19 @@ class ApiTests(APITestCase):
         response=self.client.post("/api/v1/vehicles/lexus/",{"kind":"offer","name":"Buyer","email":"buyer@example.test","phone":"0800","message":"Offer","offer_amount":"400","consent":True},format="json",**self.headers())
         self.assertEqual(response.status_code,201); inquiry=BuyerRequest.objects.get(); self.assertEqual(inquiry.offer_status,"pending")
         self.car.refresh_from_db(); self.assertEqual(self.car.availability,"available")
+    def test_buyer_requests_limit_by_dealer_contact(self):
+        payload={"kind":"inquiry","name":"Buyer","email":"buyer@example.test","phone":"0800","consent":True}
+        for _ in range(5):
+            self.assertEqual(self.client.post("/api/v1/vehicles/lexus/",payload,format="json",**self.headers()).status_code,201)
+        self.assertEqual(self.client.post("/api/v1/vehicles/lexus/",payload,format="json",**self.headers()).status_code,429)
+        payload["email"]="another@example.test";payload["phone"]="0900"
+        self.assertEqual(self.client.post("/api/v1/vehicles/lexus/",payload,format="json",**self.headers()).status_code,201)
+
+    def test_buyer_must_consent(self):
+        response=self.client.post("/api/v1/vehicles/lexus/",{"kind":"inquiry","name":"Buyer","email":"buyer@example.test","phone":"0800","consent":False},format="json",**self.headers())
+        self.assertEqual(response.status_code,400)
+        self.assertFalse(BuyerRequest.objects.exists())
+
     def test_staff_image_upload_is_tenant_scoped_and_versioned(self):
         self.login()
         buffer=BytesIO(); Image.new("RGB",(8,8),"white").save(buffer,format="PNG")
