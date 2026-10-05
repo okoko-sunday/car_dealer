@@ -34,6 +34,14 @@ class ApiTests(APITestCase):
         self.assertEqual([item["slug"] for item in available.data],["lexus"])
         ordered=self.client.get("/api/v1/vehicles/?sort=price_low",**self.headers())
         self.assertEqual([item["slug"] for item in ordered.data],["reserved-toyota","lexus"])
+
+    def test_public_showroom_pagination_is_available_only_and_filterable(self):
+        for index in range(14):
+            Vehicle.objects.create(dealer=self.a,slug=f"available-{index}",make="Honda" if index%2 else "BMW",model=f"Model {index}",year=2022,price=1000+index,mileage_km=index,transmission="Manual" if index%2 else "Automatic",fuel_type="Petrol",condition="Pre-owned",location="Lagos",description="Showroom stock",publication_status=Vehicle.Publication.PUBLISHED,availability=Vehicle.Availability.AVAILABLE)
+        response=self.client.get("/api/v1/vehicles/?paginated=1&availability=available",**self.headers())
+        self.assertEqual(response.status_code,200);self.assertEqual(response.data["count"],15);self.assertEqual(len(response.data["results"]),12);self.assertEqual(response.data["pages"],2)
+        filtered=self.client.get("/api/v1/vehicles/?paginated=1&availability=available&make=Honda&transmission=Manual",**self.headers())
+        self.assertEqual(filtered.data["count"],7);self.assertTrue(all(item["make"]=="Honda" for item in filtered.data["results"]));self.assertIn("BMW",filtered.data["filters"]["makes"])
     def test_login_rejects_other_dealer(self):
         self.assertEqual(self.login("b.test").status_code,403)
     def test_staff_api_requires_membership_for_selected_tenant(self):

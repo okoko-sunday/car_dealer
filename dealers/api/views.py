@@ -46,9 +46,17 @@ def vehicles(request):
     query=request.query_params.get("q","").strip()
     if query: qs=qs.filter(Q(make__icontains=query)|Q(model__icontains=query)|Q(description__icontains=query))
     if request.query_params.get("make"): qs=qs.filter(make=request.query_params["make"])
+    if request.query_params.get("transmission"): qs=qs.filter(transmission=request.query_params["transmission"])
     if request.query_params.get("availability"): qs=qs.filter(availability=request.query_params["availability"])
     ordering={"price_low":"price","price_high":"-price","newest":"-published_at"}.get(request.query_params.get("sort"),"-published_at")
-    return Response(VehicleSerializer(qs.order_by(ordering),many=True,context={"request":request}).data)
+    qs=qs.order_by(ordering,"-created_at")
+    if request.query_params.get("paginated")!="1":
+        return Response(VehicleSerializer(qs,many=True,context={"request":request}).data)
+    available_base=Vehicle.objects.filter(dealer=dealer,publication_status=Vehicle.Publication.PUBLISHED,availability=Vehicle.Availability.AVAILABLE)
+    paginator=Paginator(qs,12)
+    try: page=paginator.page(max(1,int(request.query_params.get("page",1))))
+    except (ValueError,EmptyPage): page=paginator.page(1 if not paginator.num_pages else paginator.num_pages)
+    return Response({"results":VehicleSerializer(page.object_list,many=True,context={"request":request}).data,"count":paginator.count,"page":page.number,"page_size":12,"pages":paginator.num_pages,"has_previous":page.has_previous(),"has_next":page.has_next(),"filters":{"makes":list(available_base.order_by("make").values_list("make",flat=True).distinct()),"transmissions":list(available_base.order_by("transmission").values_list("transmission",flat=True).distinct())}})
 
 @api_view(["GET","POST"])
 @permission_classes([AllowAny])
