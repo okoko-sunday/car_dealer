@@ -100,5 +100,5 @@ Every operation is tenant-authorized, increments the vehicle version, records ac
 
 
 
-
+docker compose up --build
 

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+import re
 from django.conf import settings
 from dealers.models import BuyerRequest, Dealer, Vehicle, VehicleImage
 
@@ -14,6 +15,22 @@ class DealerSerializer(serializers.ModelSerializer):
         fields = ["id","slug","name","tagline","story","email","phone","whatsapp","address","opening_hours","primary_color","accent_color","logo_url","version"]
     def get_logo_url(self, obj):
         return media_url(obj.logo.url, self.context["request"]) if obj.logo else None
+
+class DealerWriteSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Dealer
+        fields = ["name","tagline","story","email","phone","whatsapp","address","opening_hours","primary_color","accent_color","logo"]
+        extra_kwargs = {"logo":{"required":False,"allow_null":True}}
+    def validate(self, attrs):
+        for field in ("primary_color","accent_color"):
+            value=attrs.get(field,getattr(self.instance,field,None))
+            if value and not re.fullmatch(r"#[0-9A-Fa-f]{6}",value):
+                raise serializers.ValidationError({field:"Use a six-digit colour such as #416B61."})
+        logo=attrs.get("logo")
+        if logo:
+            if logo.size > 4 * 1024 * 1024: raise serializers.ValidationError({"logo":"Logo files must be no larger than 4 MB."})
+            if getattr(logo,"content_type","") not in {"image/jpeg","image/png","image/webp"}: raise serializers.ValidationError({"logo":"Use JPEG, PNG, or WebP."})
+        return attrs
 
 class VehicleImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()

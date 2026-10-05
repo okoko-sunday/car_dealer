@@ -12,9 +12,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from dealers.models import AuditEntry, BuyerRequest, Membership, OutboxEvent, Vehicle, VehicleImage
-from dealers.services import record_vehicle_change
+from dealers.services import record_dealer_change, record_vehicle_change
 from .permissions import CanManageInventory, IsDealerStaff
-from .serializers import BuyerRequestCreateSerializer, BuyerRequestSerializer, DealerSerializer, VehicleSerializer, VehicleWriteSerializer, VehicleImageUploadSerializer
+from .serializers import BuyerRequestCreateSerializer, BuyerRequestSerializer, DealerSerializer, DealerWriteSerializer, VehicleSerializer, VehicleWriteSerializer, VehicleImageUploadSerializer
 
 def dealer_or_404(request):
     if not getattr(request,"dealer",None):
@@ -68,6 +68,20 @@ class StaffOverview(APIView):
     def get(self,request):
         cars=Vehicle.objects.filter(dealer=request.dealer)
         return Response({"dealer":DealerSerializer(request.dealer,context={"request":request}).data,"user":{"name":request.user.get_full_name() or request.user.username,"role":request.membership.role},"counts":{"active":cars.filter(publication_status="published",availability="available").count(),"draft":cars.filter(publication_status="draft").count(),"reserved":cars.filter(availability="reserved").count(),"sold":cars.filter(availability="sold").count()},"vehicles":VehicleSerializer(cars.order_by("-updated_at")[:8],many=True,context={"request":request}).data,"requests":BuyerRequestSerializer(BuyerRequest.objects.filter(dealer=request.dealer).select_related("vehicle").order_by("-created_at")[:8],many=True).data,"outbox":list(OutboxEvent.objects.filter(dealer=request.dealer).order_by("-created_at").values("id","event_type","aggregate_version","status","attempts","last_error","created_at")[:8])})
+
+class StaffSite(APIView):
+    permission_classes=[IsDealerStaff]
+    def get(self,request):
+        return Response(DealerSerializer(request.dealer,context={"request":request}).data)
+    @transaction.atomic
+    def patch(self,request):
+        if request.membership.role not in {Membership.Role.OWNER,Membership.Role.MANAGER}: return Response(status=403)
+        dealer=request.dealer
+        serializer=DealerWriteSerializer(dealer,data=request.data,partial=True)
+        serializer.is_valid(raise_exception=True)
+        dealer=serializer.save(version=dealer.version+1)
+        record_dealer_change(dealer,request.user)
+        return Response(DealerSerializer(dealer,context={"request":request}).data)
 
 class StaffVehicles(APIView):
     permission_classes=[IsDealerStaff]

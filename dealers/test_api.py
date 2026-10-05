@@ -94,3 +94,24 @@ class ApiTests(APITestCase):
     def test_staff_update_versions_and_queues_event(self):
         self.login(); response=self.client.patch(f"/api/v1/staff/vehicles/{self.car.id}/",{"price":"550.00"},format="json",**self.headers())
         self.assertEqual(response.status_code,200); self.assertEqual(response.data["version"],2); self.assertTrue(OutboxEvent.objects.filter(aggregate_id=self.car.id,aggregate_version=2).exists())
+
+    def test_owner_can_update_only_selected_dealer_site(self):
+        self.login()
+        response=self.client.patch("/api/v1/staff/site/",{"name":"Dealer A Premium","phone":"08001234567","primary_color":"#315A4E"},format="json",**self.headers())
+        self.assertEqual(response.status_code,200); self.assertEqual(response.data["version"],2)
+        self.a.refresh_from_db();self.b.refresh_from_db()
+        self.assertEqual(self.a.name,"Dealer A Premium");self.assertEqual(self.b.name,"Dealer B")
+        event=OutboxEvent.objects.get(aggregate_type="dealer",aggregate_id=self.a.id,aggregate_version=2)
+        self.assertEqual(event.event_type,"dealer.updated.v1");self.assertEqual(event.payload["phone"],"08001234567")
+
+    def test_sales_staff_cannot_change_site_settings(self):
+        sales=get_user_model().objects.create_user("sales",password="secret")
+        Membership.objects.create(dealer=self.a,user=sales,role=Membership.Role.SALES)
+        response=self.client.post("/api/v1/auth/token/",{"username":"sales","password":"secret"},format="json",**self.headers())
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {response.data['token']}")
+        denied=self.client.patch("/api/v1/staff/site/",{"name":"Unauthorised"},format="json",**self.headers())
+        self.assertEqual(denied.status_code,403);self.a.refresh_from_db();self.assertEqual(self.a.name,"Dealer A")
+
+    def test_site_settings_reject_invalid_colour(self):
+        self.login();response=self.client.patch("/api/v1/staff/site/",{"primary_color":"red"},format="json",**self.headers())
+        self.assertEqual(response.status_code,400)

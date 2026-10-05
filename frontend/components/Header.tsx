@@ -19,8 +19,8 @@ export function Header({dealer}:{dealer:Dealer}){
 
   return <header className="siteHeader">
     <Link className="brandLockup" href="/" aria-label={`${dealer.name} home`} onClick={close}>
-      <span className="brandMark">{initials}</span>
-      <span className="wordmark">{dealer.name}<small>Motor atelier · Lagos</small></span>
+      <span className={`brandMark ${dealer.logo_url?"hasLogo":""}`}>{dealer.logo_url?<img src={dealer.logo_url} alt=""/>:initials}</span>
+      <span className="wordmark">{dealer.name}<small>Independent motor atelier</small></span>
     </Link>
     <nav className="desktopNav" aria-label="Main navigation">
       <Link href="/inventory">Collection</Link>
@@ -36,7 +36,7 @@ export function Header({dealer}:{dealer:Dealer}){
     </button>
     <div className={`mobileMenu ${open?"isOpen":""}`} id="mobile-menu" aria-hidden={!open}>
       <div className="mobileMenuInner">
-        <span className="menuKicker">Navigate / Atelier Motors</span>
+        <span className="menuKicker">Navigate / {dealer.name}</span>
         <nav aria-label="Mobile navigation">
           <Link href="/" onClick={close}><small>01</small><span>Home</span><b>↗</b></Link>
           <Link href="/inventory" onClick={close}><small>02</small><span>Collection</span><b>↗</b></Link>

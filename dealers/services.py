@@ -11,7 +11,8 @@ from .models import AuditEntry, MarketplaceListing, OutboxEvent, Vehicle
 
 def dealer_payload(dealer):
     return {"id": str(dealer.id), "version": dealer.version, "name": dealer.name, "slug": dealer.slug,
-        "tagline": dealer.tagline, "email": dealer.email, "phone": dealer.phone, "address": dealer.address,
+        "tagline": dealer.tagline, "story": dealer.story, "email": dealer.email, "phone": dealer.phone,
+        "whatsapp": dealer.whatsapp, "address": dealer.address,
         "opening_hours": dealer.opening_hours, "updated_at": dealer.updated_at.isoformat()}
 
 def record_dealer_change(dealer, actor, created=False):
