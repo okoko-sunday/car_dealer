@@ -1,7 +1,8 @@
 from django.contrib import messages
-from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
 from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -36,16 +37,13 @@ def inventory(request):
     return render(request, "public/inventory.html", {"vehicles": items, "makes": makes, "q": q})
 
 def vehicle_detail(request, slug):
-    if request.method == "POST":
-        address = request.META.get("REMOTE_ADDR", "unknown")
-        key = f"buyer-request:{request.dealer.id if request.dealer else 'none'}:{address}"
-        if cache.get(key, 0) >= 5:
-            return render(request, "public/rate_limited.html", status=429)
-        if not cache.add(key, 1, timeout=600): cache.incr(key)
     dealer = require_dealer(request)
     vehicle = get_object_or_404(Vehicle.objects.prefetch_related("images"), dealer=dealer, slug=slug, publication_status=Vehicle.Publication.PUBLISHED)
     form = BuyerRequestForm(request.POST or None)
     if request.method == "POST" and form.is_valid():
+        recent = BuyerRequest.objects.filter(dealer=dealer, created_at__gte=timezone.now()-timedelta(minutes=10))
+        if recent.filter(Q(email__iexact=form.cleaned_data["email"]) | Q(phone=form.cleaned_data["phone"])).count() >= 5:
+            return render(request, "public/rate_limited.html", status=429)
         inquiry = form.save(commit=False); inquiry.dealer = dealer; inquiry.vehicle = vehicle; inquiry.offer_status = BuyerRequest.OfferStatus.PENDING if inquiry.kind == BuyerRequest.Kind.OFFER else BuyerRequest.OfferStatus.NOT_APPLICABLE; inquiry.save()
         messages.success(request, "Request received. The dealer will contact you; no sale or booking is confirmed yet.")
         return redirect(f"{reverse('vehicle_detail', args=[slug])}#request")
@@ -75,6 +73,7 @@ def vehicle_create(request):
     return render(request, "dashboard/vehicle_form.html", {"form": form, "title": "Create vehicle"})
 
 @dealer_role_required(*EDIT_ROLES)
+@transaction.atomic
 def vehicle_edit(request, pk):
     vehicle = get_object_or_404(Vehicle, pk=pk, dealer=request.dealer)
     form = VehicleForm(request.POST or None, instance=vehicle)
@@ -84,7 +83,7 @@ def vehicle_edit(request, pk):
         messages.success(request, "Changes saved and queued for marketplace sync when applicable.")
         return redirect("vehicle_edit", pk=pk)
     if request.method == "POST" and request.POST.get("intent") == "image" and image_form.is_valid():
-        previous = Vehicle.objects.get(pk=vehicle.pk); image = image_form.save(commit=False); image.vehicle = vehicle; image.save(); vehicle.version += 1; vehicle.save(update_fields=["version", "updated_at"]); record_vehicle_change(vehicle, request.user, "vehicle.image_added", previous)
+        previous = Vehicle.objects.get(pk=vehicle.pk); image = image_form.save(commit=False); image.vehicle = vehicle; image.position = (last_position + 1) if (last_position := vehicle.images.order_by("-position").values_list("position", flat=True).first()) is not None else 0; image.save(); vehicle.version += 1; vehicle.save(update_fields=["version", "updated_at"]); record_vehicle_change(vehicle, request.user, "vehicle.image_added", previous)
         messages.success(request, "Image uploaded.")
         return redirect("vehicle_edit", pk=pk)
     return render(request, "dashboard/vehicle_form.html", {"form": form, "image_form": image_form, "vehicle": vehicle, "title": f"Edit {vehicle.title}"})
@@ -108,6 +107,7 @@ def request_status(request, pk):
     return redirect("requests_list")
 
 @dealer_role_required(Membership.Role.OWNER, Membership.Role.MANAGER)
+@transaction.atomic
 def dealer_settings(request):
     form = DealerForm(request.POST or None, request.FILES or None, instance=request.dealer)
     if request.method == "POST" and form.is_valid():
@@ -120,6 +120,7 @@ def health(request): return JsonResponse({"status": "ok"})
 
 @require_POST
 @dealer_role_required(*EDIT_ROLES)
+@transaction.atomic
 def image_delete(request, pk):
     image = get_object_or_404(VehicleImage.objects.select_related("vehicle"), pk=pk, vehicle__dealer=request.dealer)
     vehicle = image.vehicle

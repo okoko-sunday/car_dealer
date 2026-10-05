@@ -1,7 +1,7 @@
-from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage
 from django.db import transaction
 from django.db.models import Q
+from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.text import slugify
@@ -55,10 +55,10 @@ def vehicles(request):
 def vehicle_detail(request,slug):
     vehicle=get_object_or_404(Vehicle.objects.prefetch_related("images"),dealer=dealer_or_404(request),slug=slug,publication_status=Vehicle.Publication.PUBLISHED)
     if request.method=="GET": return Response(VehicleSerializer(vehicle,context={"request":request}).data)
-    address=request.META.get("REMOTE_ADDR","unknown"); key=f"api-inquiry:{vehicle.dealer_id}:{address}"
-    if cache.get(key,0)>=5: return Response({"detail":"Please wait before sending another request."},status=429)
-    if not cache.add(key,1,600): cache.incr(key)
     serializer=BuyerRequestCreateSerializer(data=request.data); serializer.is_valid(raise_exception=True)
+    recent=BuyerRequest.objects.filter(dealer=vehicle.dealer,created_at__gte=timezone.now()-timedelta(minutes=10))
+    if recent.filter(Q(email__iexact=serializer.validated_data["email"])|Q(phone=serializer.validated_data["phone"])).count()>=5:
+        return Response({"detail":"Please wait before sending another request."},status=429)
     kind=serializer.validated_data["kind"]; serializer.validated_data.pop("consent",None)
     item=serializer.save(dealer=vehicle.dealer,vehicle=vehicle,offer_status=BuyerRequest.OfferStatus.PENDING if kind==BuyerRequest.Kind.OFFER else BuyerRequest.OfferStatus.NOT_APPLICABLE)
     return Response({"id":item.id,"status":"received","next_step":"The dealer will contact you. No booking or sale is confirmed."},status=201)
@@ -83,16 +83,18 @@ class StaffVehicles(APIView):
         try: page=paginator.page(max(1,int(request.query_params.get("page",1))))
         except (ValueError,EmptyPage): page=paginator.page(1 if not paginator.num_pages else paginator.num_pages)
         return Response({"results":VehicleSerializer(page.object_list,many=True,context={"request":request}).data,"count":paginator.count,"page":page.number,"page_size":12,"pages":paginator.num_pages,"has_previous":page.has_previous(),"has_next":page.has_next()})
+    @transaction.atomic
     def post(self,request):
         if request.membership.role not in {Membership.Role.OWNER,Membership.Role.MANAGER}: return Response(status=403)
         serializer=VehicleWriteSerializer(data=request.data); serializer.is_valid(raise_exception=True)
-        candidate=Vehicle(dealer=request.dealer,slug="pending",**serializer.validated_data); candidate.slug=slugify(candidate.title)
+        candidate=Vehicle(dealer=request.dealer,slug="pending",**serializer.validated_data); candidate.slug=f"{slugify(candidate.title)}-{candidate.id.hex[:8]}"
         if candidate.publication_status==Vehicle.Publication.PUBLISHED: candidate.published_at=timezone.now()
         candidate.save(); record_vehicle_change(candidate,request.user,"vehicle.created")
         return Response(VehicleSerializer(candidate,context={"request":request}).data,status=201)
 
 class StaffVehicleDetail(APIView):
     permission_classes=[CanManageInventory]
+    @transaction.atomic
     def patch(self,request,pk):
         item=get_object_or_404(Vehicle,pk=pk,dealer=request.dealer); previous=Vehicle.objects.get(pk=pk)
         serializer=VehicleWriteSerializer(item,data=request.data,partial=True); serializer.is_valid(raise_exception=True); item=serializer.save(version=item.version+1)
@@ -116,7 +118,7 @@ class StaffVehicleImages(APIView):
         serializer=VehicleImageUploadSerializer(data=request.data); serializer.is_valid(raise_exception=True)
         with transaction.atomic():
             previous=Vehicle.objects.get(pk=vehicle.pk)
-            position=(vehicle.images.order_by("-position").values_list("position",flat=True).first() or -1)+1
+            position=(last_position + 1) if (last_position := vehicle.images.order_by("-position").values_list("position",flat=True).first()) is not None else 0
             serializer.save(vehicle=vehicle,position=position)
             vehicle.version+=1; vehicle.save(update_fields=["version","updated_at"])
             record_vehicle_change(vehicle,request.user,"vehicle.image_added",previous)

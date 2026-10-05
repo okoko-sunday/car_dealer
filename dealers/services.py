@@ -55,7 +55,7 @@ def save_vehicle(form, dealer, actor, vehicle=None):
         previous = Vehicle.objects.get(pk=vehicle.pk)
     item = form.save(commit=False)
     item.dealer = dealer
-    if not item.slug: item.slug = slugify(item.title)
+    if not item.slug: item.slug = f"{slugify(item.title)}-{item.id.hex[:8]}"
     if previous:
         item.version = previous.version + 1
     if item.publication_status == Vehicle.Publication.PUBLISHED and not item.published_at:

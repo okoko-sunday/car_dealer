@@ -2,13 +2,18 @@ from rest_framework import serializers
 from django.conf import settings
 from dealers.models import BuyerRequest, Dealer, Vehicle, VehicleImage
 
+def media_url(url, request):
+    if url.startswith(("https://", "http://")): return url
+    if settings.PUBLIC_API_URL: return settings.PUBLIC_API_URL.rstrip("/") + url
+    return request.build_absolute_uri(url)
+
 class DealerSerializer(serializers.ModelSerializer):
     logo_url = serializers.SerializerMethodField()
     class Meta:
         model = Dealer
         fields = ["id","slug","name","tagline","story","email","phone","whatsapp","address","opening_hours","primary_color","accent_color","logo_url","version"]
     def get_logo_url(self, obj):
-        return f"{settings.PUBLIC_API_URL.rstrip('/')}{obj.logo.url}" if obj.logo and settings.PUBLIC_API_URL else (self.context["request"].build_absolute_uri(obj.logo.url) if obj.logo else None)
+        return media_url(obj.logo.url, self.context["request"]) if obj.logo else None
 
 class VehicleImageSerializer(serializers.ModelSerializer):
     url = serializers.SerializerMethodField()
@@ -16,7 +21,7 @@ class VehicleImageSerializer(serializers.ModelSerializer):
         model = VehicleImage
         fields = ["id","url","alt_text","position"]
     def get_url(self, obj):
-        return f"{settings.PUBLIC_API_URL.rstrip('/')}{obj.image.url}" if settings.PUBLIC_API_URL else self.context["request"].build_absolute_uri(obj.image.url)
+        return media_url(obj.image.url, self.context["request"])
 
 class VehicleSerializer(serializers.ModelSerializer):
     title = serializers.ReadOnlyField()
@@ -38,6 +43,8 @@ class BuyerRequestCreateSerializer(serializers.ModelSerializer):
         model = BuyerRequest
         fields = ["kind","name","email","phone","message","preferred_at","offer_amount","consent"]
     def validate(self, data):
+        if not data.get("consent"):
+            raise serializers.ValidationError({"consent":"Consent is required before sending a request."})
         if data.get("kind") == BuyerRequest.Kind.OFFER and not data.get("offer_amount"):
             raise serializers.ValidationError({"offer_amount":"An offer amount is required."})
         return data

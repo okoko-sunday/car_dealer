@@ -4,7 +4,7 @@ import {Footer} from "@/components/Footer";
 import {Header} from "@/components/Header";
 import {getDealer,getVehicles} from "@/lib/api";
 
-export const metadata:Metadata={title:"Showroom",description:"Visit the Atelier Motors showroom in Lagos, review opening hours, and arrange a private viewing."};
+export const metadata:Metadata={title:"Showroom",description:"Explore the dealer showroom and arrange a private viewing."};
 
 export default async function Showroom(){
   const [dealer,vehicles]=await Promise.all([getDealer(),getVehicles()]);
@@ -16,12 +16,12 @@ export default async function Showroom(){
     <main id="main" className="showroomPage">
       <section className="showroomHero">
         <div className="showroomHeroCopy">
-          <span className="eyebrow light">The showroom · Lagos</span>
+          <span className="eyebrow light">The showroom · {dealer.name}</span>
           <h1>Come for a<br/><span className="accentWord">closer look.</span></h1>
           <p>A calm, unhurried place to experience the details, ask direct questions, and decide at your own pace.</p>
         </div>
-        <div className="showroomMonogram" aria-hidden="true"><span>A</span><span>M</span></div>
-        <div className="showroomHeroFoot"><span>Private viewings available</span><span>{String(available).padStart(2,"0")} vehicles available</span><span>Lagos, Nigeria</span></div>
+        <div className="showroomMonogram" aria-hidden="true"><span>{dealer.name.split(" ")[0]?.[0]||"D"}</span><span>{dealer.name.split(" ")[1]?.[0]||""}</span></div>
+        <div className="showroomHeroFoot"><span>Private viewings available</span><span>{String(available).padStart(2,"0")} vehicles available</span><span>{dealer.address}</span></div>
       </section>
       <section className="showroomDetails">
         <div><span className="eyebrow">Plan your visit · 01</span><h2>Good decisions<br/>need <span className="accentWord">room.</span></h2></div>

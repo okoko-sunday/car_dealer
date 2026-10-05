@@ -1,1 +1,2 @@
-import {NextResponse} from "next/server";export async function POST(request:Request){const response=NextResponse.redirect(new URL("/dashboard/login",request.url),303);response.cookies.set("dealer_token","",{httpOnly:true,maxAge:0,path:"/"});return response}
+import {sameOrigin} from "@/lib/security";
+import {NextRequest,NextResponse} from "next/server";export async function POST(request:Request){if(!sameOrigin(request as NextRequest))return NextResponse.json({detail:"Cross-origin request blocked."},{status:403});const response=NextResponse.redirect(new URL("/dashboard/login",request.url),303);response.cookies.set("dealer_token","",{httpOnly:true,maxAge:0,path:"/"});return response}
