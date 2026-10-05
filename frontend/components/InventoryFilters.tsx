@@ -5,7 +5,7 @@ import {usePathname,useRouter} from "next/navigation";
 
 type Option={value:string;label:string;detail?:string};
 const availability:Option[]=[
-  {value:"",label:"All vehicles",detail:"Complete collection"},
+  {value:"",label:"All vehicles",detail:"Available, reserved and sold"},
   {value:"available",label:"Available now",detail:"Ready for enquiry"},
   {value:"reserved",label:"Reserved",detail:"Currently held"},
   {value:"sold",label:"Sold archive",detail:"Previously offered"},
@@ -41,7 +41,7 @@ export function InventoryFilters({initialQuery="",initialAvailability="",initial
   const active=Boolean(query.trim()||status||sort!=="newest");
   return <form className={`filterBar premiumFilters ${loading?"isLoading":""}`} onSubmit={apply}>
     <label className="searchField">
-      <span className="filterLabel">Search collection</span>
+      <span className="filterLabel">Search full inventory</span>
       <span className="searchControl"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4 4"/></svg><input type="search" value={query} onChange={event=>setQuery(event.target.value)} placeholder="Make, model or keyword"/><button type="button" aria-label="Clear search" className={query?"isVisible":""} onClick={()=>setQuery("")}>×</button></span>
     </label>
     <Choice label="Availability" value={status} options={availability} onChange={setStatus}/>

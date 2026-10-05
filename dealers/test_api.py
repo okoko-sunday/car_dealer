@@ -103,6 +103,13 @@ class ApiTests(APITestCase):
         self.login(); response=self.client.patch(f"/api/v1/staff/vehicles/{self.car.id}/",{"price":"550.00"},format="json",**self.headers())
         self.assertEqual(response.status_code,200); self.assertEqual(response.data["version"],2); self.assertTrue(OutboxEvent.objects.filter(aggregate_id=self.car.id,aggregate_version=2).exists())
 
+    def test_owner_can_select_and_remove_homepage_hero_vehicle(self):
+        self.login()
+        selected=self.client.patch(f"/api/v1/staff/vehicles/{self.car.id}/",{"is_featured":True},format="json",**self.headers())
+        self.assertEqual(selected.status_code,200);self.assertTrue(selected.data["is_featured"])
+        removed=self.client.patch(f"/api/v1/staff/vehicles/{self.car.id}/",{"is_featured":False},format="json",**self.headers())
+        self.assertEqual(removed.status_code,200);self.assertFalse(removed.data["is_featured"])
+
     def test_owner_can_update_only_selected_dealer_site(self):
         self.login()
         response=self.client.patch("/api/v1/staff/site/",{"name":"Dealer A Premium","phone":"08001234567","primary_color":"#315A4E"},format="json",**self.headers())
